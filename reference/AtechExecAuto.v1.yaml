@@ -1,0 +1,906 @@
+openapi: 3.0.0
+info:
+  title: AtechExecAuto
+  version: '1.0'
+  description: |-
+    API REST universal para invocação de *qualquer* MsExecAuto, desenvolvida pela Automatech.
+    É uma camada de acesso ao AtechExecAuto, que possui recursos de obtenção de numeração automática e/ou posicionamento de cursor quando necessário.
+
+    Vide índice em:
+    http://srv-erp-dev.atech.local:8283/rest/index/AtechExecAuto
+servers:
+  - url: 'http://srv-erp-dev.atech.local:8283/rest/AtechExecAuto/v1'
+    description: DEV
+  - url: 'http://srv-erp-dev.atech.local:8183/rest/AtechExecAuto/v1'
+    description: HML
+  - url: 'http://srv-erp-dev.atech.local:8083/rest/AtechExecAuto/v1'
+    description: PROD
+paths:
+  '':
+    post:
+      summary: AtechExecAuto
+      operationId: post-AtechExecAuto
+      responses:
+        '200':
+          description: '**OK**: tudo OK, processado normalmente'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseSemId'
+              examples:
+                OP excluída:
+                  value:
+                    resultCode: '000'
+                    resultMessage: Rotina automática executada com sucesso.
+        '201':
+          description: '**Created**: tudo OK e registro(s) foi(ram) criado(s). Obs.: o sistema só tem capacidade de determinar isso caso tenha sido gerada numeração automática; do contrário ele não sabe distinguir entre uma operação de inclusão, de alteração ou de exclusão'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseComId'
+              examples:
+                Pedido de venda criado:
+                  value:
+                    id: '285387'
+                    errorCode: 201
+                    errorMessage: Rotina automática executada com sucesso.
+        '400':
+          description: '**Bad Request**: falha sintática, foi enviado conteúdo inválido (por exemplo um body não JSON)'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseSemId'
+              examples:
+                Exclusão de OP:
+                  value:
+                    resultCode: '301'
+                    resultMessage: "Não foi possível posicionar o cursor. Registro não encontrado.\n\rAlias de tabela  = SC2\n\rNúmero do índice = 1\n\rValor procurado  = 0105731601001"
+                Body não JSON:
+                  value:
+                    resultCode: '801'
+                    resultMessage: "Descrição: Falha ao interpretar JSON: Json Error: >>a<< \r\nStack trace:  \r\n\nTHREAD ERROR ([13624], HTTP_WT___GUSTAVO_HTTP_8283_HTTPREST_HTTPURI@01|FALSE, THIS)   14/05/2020 16:57:05\nFalha ao interpretar JSON: Json Error: >>a<< on ATECHEXECAUTOJSONINTERFACE:PROCESSJSON(ATECHEXECAUTOJSONINTERFACE.TLPP) 06/05/2020 08:34:07 line : 111\n\n[TOTVS build: 7.00.170117A-20190628]\nCalled from REST_ATECHEXECAUTO:POST(RESTATECHEXECAUTO.PRW) 11/05/2020 16:57:54 line : 83\nCalled from WSRESTFUL:CALLMETHOD(WSRESTFUL.PRG) 05/03/2020 22:36:09 line : 497\nCalled from RESTEXECUTE(FWRESTSRV.PRW) 05/03/2020 22:36:09 line : 907\nCalled from REST_CONNECT(FWRESTSRV.PRW) 05/03/2020 22:36:09 line : 404\nCalled from HTTP_WT(FWHTTPSRV.PRX) 05/03/2020 22:36:09 line : 883\n"
+        '409':
+          description: '**Conflict**: conflito entre a requisição e o estado atual da entidade objeto da requisição (normalmente uma regra de negócio não atendida)'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseSemId'
+        '422':
+          description: |-
+            **Unprocessable Entity (WebDAV)**: falha semântica, ou seja, o conteúdo enviado está bem formatado porém seu conteúdo não faz sentido ou impacta em alguma regra de negócio;
+
+            > Observação importante: existe falha no framework Protheus que leva um status 422 informado pelo programa no servidor a ser retornado ao cliente como 500. Portanto, paliativamente esta API está retornando 400 ao invés de 422
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseSemId'
+        '500':
+          description: '**Internal Server Error**: ocorreu algum erro com o qual o servidor não soube lidar; neste caso, a mensagem de falha será retornada também.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResponseSemId'
+              examples:
+                Body vazio:
+                  value:
+                    resultCode: '701'
+                    resultMessage: O método espera receber um documento em formato JSON.
+      description: 'Recebe um JSON formatado para AtechExecAuto (schema pré-definido), processa através de AtechExecAutoJsonInterface e devolve o retorno também em JSON (schema pré-definido).'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                Ambiente:
+                  type: object
+                  description: 'Dados relacionados a preparação de ambiente, a qual acontece via RpcSetEnv(...)'
+                  required:
+                    - Empresa
+                    - Filial
+                  properties:
+                    Empresa:
+                      type: string
+                      description: 'É o número da empresa no formato "01"'
+                    Filial:
+                      type: string
+                      description: 'É o número da filial no formato "01"'
+                NumeracaoAutomatica:
+                  type: object
+                  description: 'Descreve o recurso (opcional) de obtenção de numeração automática, como por exemplo o próximo número de pedido de venda a ser criado. Tipicamente usado em operações de inclusão.'
+                  properties:
+                    AliasTabela:
+                      type: string
+                      description: 'Exemplos: SA1, SC2, SC5, ...'
+                    Campo:
+                      type: string
+                      description: 'Exemplos: A1_COD, C2_NUM, C5_NUM, ...'
+                    Substituicoes:
+                      type: array
+                      description: 'Um array indicando quais campos do (posterior) do parâmetro ArrayCampos deverão ter seu valor substituído pela numeração automática. Exemplo: ["C5_NUM", "C6_NUM"]'
+                      items:
+                        type: string
+                  required:
+                    - AliasTabela
+                    - Campo
+                    - Substituicoes
+                PosicionamentoCursor:
+                  type: object
+                  description: 'Descreve o recurso (opcional) de obtenção de numeração automática, como por exemplo o próximo número de pedido de venda a ser criado. Tipicamente usado em operações de exclusão.'
+                  properties:
+                    AliasTabela:
+                      type: string
+                      description: 'Exemplos: SA1, SC2, SC5, ...'
+                    NumIndice:
+                      type: string
+                      description: 'Número do índice na tabela que deve ser utilizado para pesquisar o "Valor". Exemplo: o índice número 1 na tabela SC2 representa a chave C2_FILIAL+C2_NUM+C2_ITEM+C2_SEQUEN.'
+                    Valor:
+                      type: string
+                      description: 'Valor a ser pesquisado no índice. Exemplo: "01055731801001" (C2_FILIAL+C2_NUM+C2_ITEM+C2_SEQUEN).'
+                  required:
+                    - AliasTabela
+                    - NumIndice
+                    - Valor
+                MsExecAuto:
+                  type: object
+                  required:
+                    - Programa
+                  properties:
+                    Programa:
+                      type: string
+                      description: 'Nome da rotina automática a ser executada. Exemplo: MATA410, MATA650, ...'
+                    Argumentos:
+                      anyOf:
+                        - type:
+                            - string
+                            - number
+                            - integer
+                            - boolean
+                            - 'null'
+                          description: Qualquer valor que deva ser passado por parâmetro para o MsExecAuto.
+                        - $ref: '#/components/schemas/ArrayCampos'
+                        - $ref: '#/components/schemas/ArrayArraysCampos'
+                      description: "Qualquer quantidade de parâmetros a serem passados para o MsExecAuto. A ordem no JSON será obedecida.\nExemplos: \nO MsExecAuto para criação de pedido de venda recebe:\n- um array de campos referente ao cabeçalho do pedido\n- um array contendo N arrays de campos, referentes a cada item do pedido\n- o tipo de operação desejada, sendo 3 = inclusão\n- um booleano informando se deve haver rateio por Centro de Custo"
+              required:
+                - Ambiente
+                - MsExecAuto
+            examples:
+              Criação de PV:
+                value:
+                  Ambiente:
+                    Empresa: '01'
+                    Filial: '01'
+                  NumeracaoAutomatica:
+                    AliasTabela: SC5
+                    Campo: C5_NUM
+                    Substituicoes:
+                      - C5_NUM
+                      - C6_NUM
+                  MsExecAuto:
+                    Programa: MATA410
+                    Argumentos:
+                      - ArrayCampos:
+                          - Nome: C5_FILIAL
+                            Tipo: Char
+                            Valor: '01'
+                            Complemento: null
+                          - Nome: C5_NUM
+                            Tipo: Char
+                            Valor: null
+                            Complemento: null
+                          - Nome: C5_TIPO
+                            Tipo: Char
+                            Valor: 'N'
+                            Complemento: null
+                          - Nome: C5_CLIENTE
+                            Tipo: Char
+                            Valor: '000329'
+                            Complemento: null
+                          - Nome: C5_LOJACLI
+                            Tipo: Char
+                            Valor: '001'
+                            Complemento: null
+                          - Nome: C5_LOJAENT
+                            Tipo: Char
+                            Valor: '001'
+                            Complemento: null
+                          - Nome: C5_CONDPAG
+                            Tipo: Char
+                            Valor: '013'
+                            Complemento: null
+                          - Nome: C5_ZCON
+                            Tipo: Char
+                            Valor: Gustavo Regal
+                            Complemento: null
+                          - Nome: C5_ZEMA
+                            Tipo: Char
+                            Valor: gustavo@automatech.com.br
+                            Complemento: null
+                          - Nome: C5_ZPNUV
+                            Tipo: Char
+                            Valor: '1'
+                            Complemento: null
+                          - Nome: C5_TIPOCLI
+                            Tipo: Char
+                            Valor: F
+                            Complemento: null
+                          - Nome: C5_EMISSAO
+                            Tipo: Date
+                            Valor: '20200428'
+                            Complemento: null
+                          - Nome: C5_MOEDA
+                            Tipo: Numeric
+                            Valor: 1
+                            Complemento: null
+                          - Nome: C5_EXTERNO
+                            Tipo: Char
+                            Valor: '2'
+                            Complemento: null
+                          - Nome: C5_FORMA
+                            Tipo: Char
+                            Valor: '1'
+                            Complemento: null
+                          - Nome: C5_VEND1
+                            Tipo: Char
+                            Valor: '000501'
+                            Complemento: null
+                          - Nome: C5_TIPLIB
+                            Tipo: Char
+                            Valor: '2'
+                            Complemento: null
+                          - Nome: C5_TPFRETE
+                            Tipo: Char
+                            Valor: C
+                            Complemento: null
+                          - Nome: C5_CLIENT
+                            Tipo: Char
+                            Valor: '000329'
+                            Complemento: null
+                          - Nome: C5_CLIRET
+                            Tipo: Char
+                            Valor: '000329'
+                            Complemento: null
+                          - Nome: C5_LOJARET
+                            Tipo: Char
+                            Valor: '001'
+                            Complemento: null
+                          - Nome: C5_ZDD1
+                            Tipo: Char
+                            Valor: '51'
+                            Complemento: null
+                          - Nome: C5_ZTE1
+                            Tipo: Char
+                            Valor: '995965533'
+                            Complemento: null
+                          - Nome: C5_ZTE2
+                            Tipo: Char
+                            Valor: '30178300'
+                            Complemento: null
+                          - Nome: C5_ZIDC
+                            Tipo: Char
+                            Valor: '151647'
+                            Complemento: null
+                          - Nome: C5_QEXAT
+                            Tipo: Char
+                            Valor: 'N'
+                            Complemento: null
+                          - Nome: C5_OBSI
+                            Tipo: Char
+                            Valor: Teste de observação interna
+                            Complemento: null
+                          - Nome: C5_OBSNT
+                            Tipo: Char
+                            Valor: Teste de observação para DANFE
+                            Complemento: null
+                          - Nome: C5_MENNOTA
+                            Tipo: Char
+                            Valor: Teste de mensagem na NF
+                            Complemento: null
+                          - Nome: C5_IPQID
+                            Tipo: Char
+                            Valor: '1'
+                            Complemento: null
+                          - Nome: C5_IPDMID
+                            Tipo: Char
+                            Valor: '1'
+                            Complemento: null
+                          - Nome: C5_TRANSP
+                            Tipo: Char
+                            Valor: '000008'
+                            Complemento: null
+                          - Nome: C5_TSRV
+                            Tipo: Char
+                            Valor: CORREIOS 41068-PAC
+                            Complemento: null
+                          - Nome: C5_FRETE
+                            Tipo: Numeric
+                            Valor: 24.5
+                            Complemento: null
+                          - Nome: C5_VEND2
+                            Tipo: Char
+                            Valor: '000001'
+                            Complemento: null
+                      - ArrayArraysCampos:
+                          - - Nome: C6_FILIAL
+                              Tipo: Char
+                              Valor: '01'
+                              Complemento: null
+                            - Nome: C6_NUM
+                              Tipo: Char
+                              Valor: null
+                              Complemento: null
+                            - Nome: C6_ITEM
+                              Tipo: Char
+                              Valor: '01'
+                              Complemento: null
+                            - Nome: C6_PRODUTO
+                              Tipo: Char
+                              Valor: '007777'
+                              Complemento: null
+                            - Nome: C6_QTDVEN
+                              Tipo: Numeric
+                              Valor: 2
+                              Complemento: null
+                            - Nome: C6_PRCVEN
+                              Tipo: Numeric
+                              Valor: 50.25
+                              Complemento: null
+                            - Nome: C6_PRUNIT
+                              Tipo: Numeric
+                              Valor: 50.25
+                              Complemento: null
+                            - Nome: C6_VALOR
+                              Tipo: Numeric
+                              Valor: 100.5
+                              Complemento: null
+                            - Nome: C6_TES
+                              Tipo: Char
+                              Valor: '800'
+                              Complemento: null
+                            - Nome: C6_DESCRI
+                              Tipo: Char
+                              Valor: RIBBON BLA BLA BLA
+                              Complemento: null
+                            - Nome: C6_UM
+                              Tipo: Char
+                              Valor: RL
+                              Complemento: null
+                            - Nome: C6_LOCAL
+                              Tipo: Char
+                              Valor: '01'
+                              Complemento: null
+                            - Nome: C6_CLI
+                              Tipo: Char
+                              Valor: '000329'
+                              Complemento: null
+                            - Nome: C6_LOJA
+                              Tipo: Char
+                              Valor: '001'
+                              Complemento: null
+                            - Nome: C6_CHASSI
+                              Tipo: Char
+                              Valor: X
+                              Complemento: null
+                            - Nome: C6_TURNO
+                              Tipo: Char
+                              Valor: M
+                              Complemento: null
+                            - Nome: C6_ENTREG
+                              Tipo: Date
+                              Valor: '20201230'
+                              Complemento: null
+                            - Nome: C6_SUGENTR
+                              Tipo: Date
+                              Valor: '20200428'
+                              Complemento: null
+                            - Nome: C6_COMIS1
+                              Tipo: Numeric
+                              Valor: 0.05
+                              Complemento: null
+                            - Nome: C6_COMIS2
+                              Tipo: Numeric
+                              Valor: 0.01
+                              Complemento: null
+                          - - Nome: C6_FILIAL
+                              Tipo: Char
+                              Valor: '01'
+                              Complemento: null
+                            - Nome: C6_NUM
+                              Tipo: Char
+                              Valor: null
+                              Complemento: null
+                            - Nome: C6_ITEM
+                              Tipo: Char
+                              Valor: '02'
+                              Complemento: null
+                            - Nome: C6_PRODUTO
+                              Tipo: Char
+                              Valor: '008888'
+                              Complemento: null
+                            - Nome: C6_QTDVEN
+                              Tipo: Numeric
+                              Valor: 3
+                              Complemento: null
+                            - Nome: C6_PRCVEN
+                              Tipo: Numeric
+                              Valor: 20.15
+                              Complemento: null
+                            - Nome: C6_PRUNIT
+                              Tipo: Numeric
+                              Valor: 20.15
+                              Complemento: null
+                            - Nome: C6_VALOR
+                              Tipo: Numeric
+                              Valor: 60.45
+                              Complemento: null
+                            - Nome: C6_TES
+                              Tipo: Char
+                              Valor: '800'
+                              Complemento: null
+                            - Nome: C6_DESCRI
+                              Tipo: Char
+                              Valor: RIBBON FOO BAR FOO
+                              Complemento: null
+                            - Nome: C6_UM
+                              Tipo: Char
+                              Valor: RL
+                              Complemento: null
+                            - Nome: C6_LOCAL
+                              Tipo: Char
+                              Valor: '01'
+                              Complemento: null
+                            - Nome: C6_CLI
+                              Tipo: Char
+                              Valor: '000329'
+                              Complemento: null
+                            - Nome: C6_LOJA
+                              Tipo: Char
+                              Valor: '001'
+                              Complemento: null
+                            - Nome: C6_CHASSI
+                              Tipo: Char
+                              Valor: X
+                              Complemento: null
+                            - Nome: C6_TURNO
+                              Tipo: Char
+                              Valor: M
+                              Complemento: null
+                            - Nome: C6_ENTREG
+                              Tipo: Date
+                              Valor: '20201230'
+                              Complemento: null
+                            - Nome: C6_SUGENTR
+                              Tipo: Date
+                              Valor: '20200428'
+                              Complemento: null
+                            - Nome: C6_COMIS1
+                              Tipo: Numeric
+                              Valor: 0.05
+                              Complemento: null
+                            - Nome: C6_COMIS2
+                              Tipo: Numeric
+                              Valor: 0.01
+                              Complemento: null
+                      - 3
+                      - false
+              Criação de OP:
+                value:
+                  Ambiente:
+                    Empresa: '01'
+                    Filial: '01'
+                  NumeracaoAutomatica:
+                    AliasTabela: SC2
+                    Campo: C2_NUM
+                    Substituicoes:
+                      - C2_NUM
+                  MsExecAuto:
+                    Programa: MATA650
+                    Argumentos:
+                      - ArrayCampos:
+                          - Nome: C2_FILIAL
+                            Tipo: Char
+                            Valor: '01'
+                            Complemento: null
+                          - Nome: C2_PRODUTO
+                            Tipo: Char
+                            Valor: '02010432630102641'
+                            Complemento: null
+                          - Nome: C2_NUM
+                            Tipo: Char
+                            Valor: null
+                            Complemento: null
+                          - Nome: C2_ITEM
+                            Tipo: Char
+                            Valor: '01'
+                            Complemento: null
+                          - Nome: C2_SEQUEN
+                            Tipo: Char
+                            Valor: '001'
+                            Complemento: null
+                          - Nome: C2_DATPRI
+                            Tipo: Date
+                            Valor: '20200430'
+                            Complemento: null
+                          - Nome: C2_DATPRF
+                            Tipo: Date
+                            Valor: '20201230'
+                            Complemento: null
+                          - Nome: C2_PRIOR
+                            Tipo: Char
+                            Valor: '500'
+                            Complemento: null
+                          - Nome: C2_EMISSAO
+                            Tipo: Date
+                            Valor: '20200630'
+                            Complemento: null
+                          - Nome: C2_LOCAL
+                            Tipo: Char
+                            Valor: '01'
+                            Complemento: null
+                          - Nome: C2_QUANT
+                            Tipo: Numeric
+                            Valor: 10.5
+                            Complemento: null
+                          - Nome: AUTEXPLODE
+                            Tipo: Char
+                            Valor: 'N'
+                            Complemento: null
+                      - 3
+              Exclusão de OP:
+                value:
+                  Ambiente:
+                    Empresa: '01'
+                    Filial: '01'
+                  PosicionamentoCursor:
+                    AliasTabela: SC2
+                    NumIndice: 1
+                    Valor: '0105731601001'
+                  MsExecAuto:
+                    Programa: MATA650
+                    Argumentos:
+                      - ArrayCampos:
+                          - Nome: C2_NUM
+                            Tipo: Char
+                            Valor: '057315'
+                            Complemento: null
+                      - 5
+    parameters: []
+components:
+  schemas:
+    ArrayCampos:
+      title: ArrayCampos
+      type: object
+      description: Coleção de campos para o MsExecAuto
+      properties:
+        ArrayCampos:
+          type: array
+          items:
+            $ref: '#/components/schemas/CampoMsExecAuto'
+      x-examples:
+        'Exemplo: campos para criação de OP':
+          ArrayCampos:
+            - Nome: C2_FILIAL
+              Tipo: Char
+              Valor: '01'
+              Complemento: null
+            - Nome: C2_PRODUTO
+              Tipo: Char
+              Valor: '02010432630102641'
+              Complemento: null
+            - Nome: C2_NUM
+              Tipo: Char
+              Valor: null
+              Complemento: null
+            - Nome: C2_ITEM
+              Tipo: Char
+              Valor: '01'
+              Complemento: null
+            - Nome: C2_SEQUEN
+              Tipo: Char
+              Valor: '001'
+              Complemento: null
+            - Nome: C2_DATPRI
+              Tipo: Date
+              Valor: '20200430'
+              Complemento: null
+            - Nome: C2_DATPRF
+              Tipo: Date
+              Valor: '20201230'
+              Complemento: null
+            - Nome: C2_PRIOR
+              Tipo: Char
+              Valor: '500'
+              Complemento: null
+            - Nome: C2_EMISSAO
+              Tipo: Date
+              Valor: '20200630'
+              Complemento: null
+            - Nome: C2_LOCAL
+              Tipo: Char
+              Valor: '01'
+              Complemento: null
+            - Nome: C2_QUANT
+              Tipo: Numeric
+              Valor: 10.5
+              Complemento: null
+            - Nome: AUTEXPLODE
+              Tipo: Char
+              Valor: 'N'
+              Complemento: null
+    CampoMsExecAuto:
+      title: CampoMsExecAuto
+      type: object
+      description: |-
+        Um dos campos pertencentes ao "ArrayCampos". Indica um campo de tabela Protheus e o seu valor, bem como um possível complemento.
+
+        No Protheus, isso será formatado como, por exemplo: ["C2_LOCAL", "01", NIL]
+      properties:
+        Nome:
+          type: string
+          description: 'Nome do campo em tabela Protheus (C2_NUM, C6_PRODUTO, ...)'
+        Tipo:
+          type: string
+          description: 'Tipo do valor, usado para que o Protheus tipifique/formate internamente o valor recebido, caso necessário.'
+          enum:
+            - Char
+            - Numeric
+            - Date
+            - Logical
+        Valor:
+          type:
+            - string
+            - number
+            - integer
+            - boolean
+            - 'null'
+          description: 'Valor a ser inserido no campo. Para um campo que deve receber numeração automática, informar null.'
+        Complemento:
+          type:
+            - string
+            - 'null'
+            - number
+            - integer
+            - boolean
+          description: 'É a terceira posição do array no Protheus, geralmente  recebe nulo.'
+      required:
+        - Nome
+        - Tipo
+        - Valor
+        - Complemento
+      x-examples:
+        Char comum:
+          Nome: C5_FILIAL
+          Tipo: Char
+          Valor: '01'
+          Complemento: null
+        Numeração automática:
+          Nome: C5_NUM
+          Tipo: Char
+          Valor: null
+          Complemento: null
+        Data:
+          Nome: C5_EMISSAO
+          Tipo: Date
+          Valor: '20200428'
+          Complemento: null
+        Número:
+          Nome: C5_MOEDA
+          Tipo: Numeric
+          Valor: 1
+          Complemento: null
+        LINPOS:
+          Nome: LINPOS
+          Tipo: Char
+          Valor: C6_ITEM
+          Complemento: '02'
+    ArrayArraysCampos:
+      title: ArrayArraysCampos
+      type: object
+      description: 'Um objeto contendo uma lista de diversos "ArrayCampos"'
+      x-examples:
+        'Exemplo: itens do pedido de venda':
+          ArrayArraysCampos:
+            - - Nome: C6_FILIAL
+                Tipo: Char
+                Valor: '01'
+                Complemento: null
+              - Nome: C6_NUM
+                Tipo: Char
+                Valor: null
+                Complemento: null
+              - Nome: C6_ITEM
+                Tipo: Char
+                Valor: '01'
+                Complemento: null
+              - Nome: C6_PRODUTO
+                Tipo: Char
+                Valor: '007777'
+                Complemento: null
+              - Nome: C6_QTDVEN
+                Tipo: Numeric
+                Valor: 2
+                Complemento: null
+              - Nome: C6_PRCVEN
+                Tipo: Numeric
+                Valor: 50.25
+                Complemento: null
+              - Nome: C6_PRUNIT
+                Tipo: Numeric
+                Valor: 50.25
+                Complemento: null
+              - Nome: C6_VALOR
+                Tipo: Numeric
+                Valor: 100.5
+                Complemento: null
+              - Nome: C6_TES
+                Tipo: Char
+                Valor: '800'
+                Complemento: null
+              - Nome: C6_DESCRI
+                Tipo: Char
+                Valor: RIBBON BLA BLA BLA
+                Complemento: null
+              - Nome: C6_UM
+                Tipo: Char
+                Valor: RL
+                Complemento: null
+              - Nome: C6_LOCAL
+                Tipo: Char
+                Valor: '01'
+                Complemento: null
+              - Nome: C6_CLI
+                Tipo: Char
+                Valor: '000329'
+                Complemento: null
+              - Nome: C6_LOJA
+                Tipo: Char
+                Valor: '001'
+                Complemento: null
+              - Nome: C6_CHASSI
+                Tipo: Char
+                Valor: X
+                Complemento: null
+              - Nome: C6_TURNO
+                Tipo: Char
+                Valor: M
+                Complemento: null
+              - Nome: C6_ENTREG
+                Tipo: Date
+                Valor: '20201230'
+                Complemento: null
+              - Nome: C6_SUGENTR
+                Tipo: Date
+                Valor: '20200428'
+                Complemento: null
+              - Nome: C6_COMIS1
+                Tipo: Numeric
+                Valor: 0.05
+                Complemento: null
+              - Nome: C6_COMIS2
+                Tipo: Numeric
+                Valor: 0.01
+                Complemento: null
+            - - Nome: C6_FILIAL
+                Tipo: Char
+                Valor: '01'
+                Complemento: null
+              - Nome: C6_NUM
+                Tipo: Char
+                Valor: null
+                Complemento: null
+              - Nome: C6_ITEM
+                Tipo: Char
+                Valor: '02'
+                Complemento: null
+              - Nome: C6_PRODUTO
+                Tipo: Char
+                Valor: '008888'
+                Complemento: null
+              - Nome: C6_QTDVEN
+                Tipo: Numeric
+                Valor: 3
+                Complemento: null
+              - Nome: C6_PRCVEN
+                Tipo: Numeric
+                Valor: 20.15
+                Complemento: null
+              - Nome: C6_PRUNIT
+                Tipo: Numeric
+                Valor: 20.15
+                Complemento: null
+              - Nome: C6_VALOR
+                Tipo: Numeric
+                Valor: 60.45
+                Complemento: null
+              - Nome: C6_TES
+                Tipo: Char
+                Valor: '800'
+                Complemento: null
+              - Nome: C6_DESCRI
+                Tipo: Char
+                Valor: RIBBON FOO BAR FOO
+                Complemento: null
+              - Nome: C6_UM
+                Tipo: Char
+                Valor: RL
+                Complemento: null
+              - Nome: C6_LOCAL
+                Tipo: Char
+                Valor: '01'
+                Complemento: null
+              - Nome: C6_CLI
+                Tipo: Char
+                Valor: '000329'
+                Complemento: null
+              - Nome: C6_LOJA
+                Tipo: Char
+                Valor: '001'
+                Complemento: null
+              - Nome: C6_CHASSI
+                Tipo: Char
+                Valor: X
+                Complemento: null
+              - Nome: C6_TURNO
+                Tipo: Char
+                Valor: M
+                Complemento: null
+              - Nome: C6_ENTREG
+                Tipo: Date
+                Valor: '20201230'
+                Complemento: null
+              - Nome: C6_SUGENTR
+                Tipo: Date
+                Valor: '20200428'
+                Complemento: null
+              - Nome: C6_COMIS1
+                Tipo: Numeric
+                Valor: 0.05
+                Complemento: null
+              - Nome: C6_COMIS2
+                Tipo: Numeric
+                Valor: 0.01
+                Complemento: null
+      properties:
+        ArrayArraysCampos:
+          type: array
+          items:
+            $ref: '#/components/schemas/ArrayCampos'
+    resultCode:
+      title: resultCode
+      type: string
+      description: 'Vide maiores detalhes em [Retornos](https://stoplight.io/p/docs/gh/atechgustavo/atechexecauto/docs/Retornos.md)'
+    resultMessage:
+      title: resultMessage
+      type: string
+      description: 'Uma mensagem de texto descrevendo o resultado, seja sucesso ou erro.'
+    resultId:
+      title: resultId
+      type: string
+      description: 'Contém a numeração automática gerada, quando for o caso. Exemplo: número do pedido de venda gerado.'
+    ResponseComId:
+      title: ResponseComId
+      type: object
+      description: Resposta da API contendo numeração automática gerada.
+      properties:
+        resultId:
+          $ref: '#/components/schemas/resultId'
+        resultCode:
+          $ref: '#/components/schemas/resultCode'
+        resultMessage:
+          $ref: '#/components/schemas/resultMessage'
+      required:
+        - resultId
+        - resultCode
+        - resultMessage
+    ResponseSemId:
+      title: ResponseSemId
+      type: object
+      properties:
+        resultCode:
+          $ref: '#/components/schemas/resultCode'
+        resultMessage:
+          $ref: '#/components/schemas/resultMessage'
+      required:
+        - resultCode
+        - resultMessage
+      description: Resposta da API sem numeração automática gerada.

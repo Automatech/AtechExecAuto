@@ -8,6 +8,8 @@ info:
 
     Vide índice em:
     http://srv-erp-dev.atech.local:8283/rest/index/AtechExecAuto
+  contact:
+    name: Gustavo
 servers:
   - url: 'http://srv-erp-dev.atech.local:8283/rest/AtechExecAuto/v1'
     description: DEV
@@ -15,8 +17,10 @@ servers:
     description: HML
   - url: 'http://srv-erp-dev.atech.local:8083/rest/AtechExecAuto/v1'
     description: PROD
+tags:
+  - name: AtechExecAuto
 paths:
-  '':
+  /:
     post:
       summary: AtechExecAuto
       operationId: post-AtechExecAuto
@@ -150,17 +154,13 @@ paths:
                       type: string
                       description: 'Nome da rotina automática a ser executada. Exemplo: MATA410, MATA650, ...'
                     Argumentos:
-                      anyOf:
-                        - type:
-                            - string
-                            - number
-                            - integer
-                            - boolean
-                            - 'null'
-                          description: Qualquer valor que deva ser passado por parâmetro para o MsExecAuto.
-                        - $ref: '#/components/schemas/ArrayCampos'
-                        - $ref: '#/components/schemas/ArrayArraysCampos'
                       description: "Qualquer quantidade de parâmetros a serem passados para o MsExecAuto. A ordem no JSON será obedecida.\nExemplos: \nO MsExecAuto para criação de pedido de venda recebe:\n- um array de campos referente ao cabeçalho do pedido\n- um array contendo N arrays de campos, referentes a cada item do pedido\n- o tipo de operação desejada, sendo 3 = inclusão\n- um booleano informando se deve haver rateio por Centro de Custo"
+                      type: array
+                      items:
+                        anyOf:
+                          - $ref: '#/components/schemas/ArrayCampos'
+                          - $ref: '#/components/schemas/ArrayArraysCampos'
+                          - type: object
               required:
                 - Ambiente
                 - MsExecAuto
@@ -564,6 +564,8 @@ paths:
                             Valor: '057315'
                             Complemento: null
                       - 5
+      tags:
+        - AtechExecAuto
     parameters: []
 components:
   schemas:
